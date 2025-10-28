@@ -5,20 +5,23 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js",
-    "preinstall": "npm cache clean --force"
+    "dev": "nodemon app.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.5.0",
-    "express": "4.18.2",
-    "socket.io": "4.7.4",
-    "qrcode": "1.5.3",
-    "ejs": "3.1.9",
-    "axios": "1.6.0",
-    "chalk": "4.1.2",
-    "pino": "8.15.0",
-    "node-cache": "5.1.2",
-    "moment": "2.29.4"
+    "@whiskeysockets/baileys": "^6.5.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4",
+    "qrcode": "^1.5.3",
+    "ejs": "^3.1.9",
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "pino": "^8.15.0",
+    "node-cache": "^5.1.2",
+    "moment": "^2.29.4",
+    "@hapi/boom": "^10.0.1",
+    "file-type": "^18.5.0",
+    "awesome-phonenumber": "^4.4.0",
+    "libphonenumber-js": "^1.10.49"
   },
   "engines": {
     "node": ">=16.0.0"
