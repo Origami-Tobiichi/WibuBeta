@@ -1,22 +1,13 @@
 const { Boom } = require('@hapi/boom')
 const fs = require('fs')
 const chalk = require('chalk')
-const FileType = require('file-type')
 const path = require('path')
 const axios = require('axios')
-const PhoneNumber = require('awesome-phonenumber')
-const { imageToWebp, videoToWebp, writeExifImg, writeExifVid } = require('./lib/exif')
-const { smsg, isUrl, generateMessageTag, getBuffer, getSizeMedia, fetch, await, sleep, reSize } = require('./lib/myfunc')
 const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    generateForwardMessageContent,
-    prepareWAMessageMedia,
-    generateWAMessageFromContent,
-    generateMessageID,
-    downloadContentFromMessage,
     jidDecode,
     proto,
     jidNormalizedUser,
@@ -25,19 +16,10 @@ const {
 } = require("@whiskeysockets/baileys")
 const NodeCache = require("node-cache")
 const pino = require("pino")
-const readline = require("readline")
-const { parsePhoneNumber } = require("libphonenumber-js")
-const { PHONENUMBER_MCC } = require('@whiskeysockets/baileys/lib/Utils/generics')
-const { rmSync, existsSync } = require('fs')
-const { join } = require('path')
 
-// Import handlers
+// Import handlers dan settings
 const { handleMessages, handleGroupParticipantUpdate, handleStatus } = require('./handlers/messageHandler');
-
-// Import settings
 const settings = require('./settings')
-
-// Import store
 const store = require('./lib/lightweight_store')
 
 // Global variables
@@ -47,58 +29,35 @@ global.botname = settings.botname || "KNIGHT BOT"
 global.themeemoji = settings.themeemoji || "⚡"
 
 // Buat folder session jika belum ada
-if (!existsSync('./session')) {
+if (!fs.existsSync('./session')) {
     fs.mkdirSync('./session', { recursive: true });
 }
 
 // Buat folder data jika belum ada
-if (!existsSync('./data')) {
+if (!fs.existsSync('./data')) {
     fs.mkdirSync('./data', { recursive: true });
 }
 
-// Load user data
-const loadUsers = () => {
-    try {
-        if (existsSync('./data/users.json')) {
-            return JSON.parse(fs.readFileSync('./data/users.json'));
+// Simple phone number validation
+function validatePhoneNumber(phoneNumber) {
+    const cleanNumber = phoneNumber.replace(/[^0-9]/g, '');
+    
+    // Basic validation - minimal 10 digit, maksimal 15 digit
+    if (cleanNumber.length < 10 || cleanNumber.length > 15) {
+        return false;
+    }
+    
+    // Cek jika nomor dimulai dengan kode negara yang umum
+    const countryCodes = ['1', '7', '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41', '43', '44', '45', '46', '47', '48', '49', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63', '64', '65', '66', '81', '82', '84', '86', '90', '91', '92', '93', '94', '95', '98', '211', '212', '213', '216', '218', '220', '221', '222', '223', '224', '225', '226', '227', '228', '229', '230', '231', '232', '233', '234', '235', '236', '237', '238', '239', '240', '241', '242', '243', '244', '245', '246', '247', '248', '249', '250', '251', '252', '253', '254', '255', '256', '257', '258', '260', '261', '262', '263', '264', '265', '266', '267', '268', '269', '290', '291', '297', '298', '299', '350', '351', '352', '353', '354', '355', '356', '357', '358', '359', '370', '371', '372', '373', '374', '375', '376', '377', '378', '379', '380', '381', '382', '383', '385', '386', '387', '389', '420', '421', '423', '500', '501', '502', '503', '504', '505', '506', '507', '508', '509', '590', '591', '592', '593', '594', '595', '596', '597', '598', '599', '670', '672', '673', '674', '675', '676', '677', '678', '679', '680', '681', '682', '683', '685', '686', '687', '688', '689', '690', '691', '692', '850', '852', '853', '855', '856', '880', '886', '960', '961', '962', '963', '964', '965', '966', '967', '968', '970', '971', '972', '973', '974', '975', '976', '977', '992', '993', '994', '995', '996', '998'];
+    
+    for (const code of countryCodes) {
+        if (cleanNumber.startsWith(code)) {
+            return true;
         }
-    } catch (error) {
-        console.error('Error loading users:', error);
     }
-    return {};
-};
-
-const saveUsers = (users) => {
-    try {
-        fs.writeFileSync('./data/users.json', JSON.stringify(users, null, 2));
-    } catch (error) {
-        console.error('Error saving users:', error);
-    }
-};
-
-// Load premium data
-const loadPremium = () => {
-    try {
-        if (existsSync('./data/premium.json')) {
-            return JSON.parse(fs.readFileSync('./data/premium.json'));
-        }
-    } catch (error) {
-        console.error('Error loading premium:', error);
-    }
-    return {};
-};
-
-// Load owner data
-const loadOwner = () => {
-    try {
-        if (existsSync('./data/owner.json')) {
-            return JSON.parse(fs.readFileSync('./data/owner.json'));
-        }
-    } catch (error) {
-        console.error('Error loading owner:', error);
-    }
-    return [];
-};
+    
+    return false;
+}
 
 async function startBot(statusUpdater) {
     try {
@@ -160,13 +119,13 @@ async function startBot(statusUpdater) {
         };
 
         sock.getName = (jid, withoutContact = false) => {
-            id = sock.decodeJid(jid);
+            let id = sock.decodeJid(jid);
             withoutContact = sock.withoutContact || withoutContact;
             let v;
             if (id.endsWith("@g.us")) return new Promise(async (resolve) => {
                 v = store.contacts[id] || {};
                 if (!(v.name || v.subject)) v = sock.groupMetadata(id) || {};
-                resolve(v.name || v.subject || PhoneNumber('+' + id.replace('@s.whatsapp.net', '')).getNumber('international'));
+                resolve(v.name || v.subject || `Group: ${id}`);
             });
             else v = id === '0@s.whatsapp.net' ? {
                 id,
@@ -174,11 +133,10 @@ async function startBot(statusUpdater) {
             } : id === sock.decodeJid(sock.user.id) ?
                 sock.user :
                 (store.contacts[id] || {});
-            return (withoutContact ? '' : v.name) || v.subject || v.verifiedName || PhoneNumber('+' + jid.replace('@s.whatsapp.net', '')).getNumber('international');
+            return (withoutContact ? '' : v.name) || v.subject || v.verifiedName || `User: ${id.split('@')[0]}`;
         };
 
         sock.public = true;
-        sock.serializeM = (m) => smsg(sock, m, store);
 
         // Handle connection updates
         sock.ev.on('connection.update', async (update) => {
@@ -237,7 +195,7 @@ async function startBot(statusUpdater) {
                 if (statusCode === DisconnectReason.loggedOut) {
                     console.log(chalk.red('❌ Device logged out, clearing session...'));
                     try {
-                        rmSync('./session', { recursive: true, force: true });
+                        fs.rmSync('./session', { recursive: true, force: true });
                     } catch (error) {
                         console.error('Error clearing session:', error);
                     }
@@ -357,10 +315,9 @@ async function processPairingRequest(sock, statusUpdater) {
         const phoneNumber = global.pendingPairingRequest;
         console.log(chalk.blue('🔢 Requesting pairing code for:'), phoneNumber);
         
-        // Validate phone number
-        const pn = PhoneNumber('+' + phoneNumber);
-        if (!pn.isValid()) {
-            throw new Error('Invalid phone number format');
+        // Validasi nomor telepon sederhana
+        if (!validatePhoneNumber(phoneNumber)) {
+            throw new Error('Invalid phone number format. Please use international format without + (e.g., 6281234567890)');
         }
 
         // Pastikan koneksi sudah ready
@@ -436,12 +393,7 @@ Type !menu to see all commands.
                 text: welcomeMessage,
                 contextInfo: {
                     forwardingScore: 1,
-                    isForwarded: true,
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: '120363161513685998@newsletter',
-                        newsletterName: 'KnightBot MD',
-                        serverMessageId: -1
-                    }
+                    isForwarded: true
                 }
             }).catch(error => {
                 console.log('Note: Could not send welcome message', error.message);
@@ -488,5 +440,6 @@ async function requestPairing(phoneNumber, statusUpdater) {
 module.exports = { 
     startBot, 
     requestPairing,
-    sock: () => sock // Export socket instance untuk digunakan di file lain
+    sock: () => sock,
+    validatePhoneNumber
 };
