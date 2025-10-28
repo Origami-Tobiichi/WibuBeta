@@ -2,12 +2,21 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm install --production
+# Install system dependencies including git dan python3 (untuk native modules)
+RUN apk add --no-cache \
+    curl \
+    git \
+    python3 \
+    make \
+    g++ \
+    && npm install -g npm@latest
 
-# Install curl untuk health check
-RUN apk add --no-cache curl
+# Copy package files first untuk caching
+COPY package*.json ./
+
+# Clean npm cache dan install dependencies
+RUN npm cache clean --force && \
+    npm install --production --no-optional --build-from-source
 
 # Copy source code
 COPY . .
