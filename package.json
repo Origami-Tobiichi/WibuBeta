@@ -19,7 +19,7 @@
     "node-cache": "^5.1.2",
     "moment": "^2.29.4",
     "@hapi/boom": "^10.0.1",
-    "file-type": "^18.5.0",
+    "file-type": "^21.0.0",
     "awesome-phonenumber": "^4.4.0",
     "libphonenumber-js": "^1.10.49"
   },
@@ -27,3 +27,4 @@
     "node": ">=16.0.0"
   }
 }
+
