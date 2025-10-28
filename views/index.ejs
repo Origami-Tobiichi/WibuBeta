@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= botName %> - Koyeb Deployment</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <h1>🤖 <%= botName %></h1>
+                <p>Advanced WhatsApp Bot • Koyeb Deployment</p>
+                <div class="status-badge" id="statusBadge">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Left Column -->
+            <div class="left-column">
+                <!-- Connection Panel -->
+                <div class="card connection-panel">
+                    <h2>🔗 Connection Status</h2>
+                    <div class="status-info">
+                        <div class="status-item">
+                            <span class="label">Status:</span>
+                            <span class="value" id="connectionStatus">Disconnected</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">Last Update:</span>
+                            <span class="value" id="lastUpdate">-</span>
+                        </div>
+                        <div class="status-item" id="userInfoItem" style="display: none;">
+                            <span class="label">User:</span>
+                            <span class="value" id="userInfo">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QR Code Panel -->
+                <div class="card qr-panel" id="qrPanel">
+                    <h2>📱 Scan QR Code</h2>
+                    <div class="qr-container">
+                        <div id="qrcodeDisplay" class="qrcode-display">
+                            <div class="qr-placeholder" id="qrPlaceholder">
+                                <div class="qr-loading">🔄 Generating QR Code...</div>
+                            </div>
+                        </div>
+                        <div class="qr-instructions">
+                            <h3>How to Connect:</h3>
+                            <ol>
+                                <li>Open WhatsApp on your phone</li>
+                                <li>Tap <strong>Settings</strong> → <strong>Linked Devices</strong></li>
+                                <li>Tap <strong>Link a Device</strong></li>
+                                <li>Scan the QR code above</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pairing Panel -->
+                <div class="card pairing-panel" id="pairingPanel">
+                    <h2>🔢 Pairing Code</h2>
+                    <form id="pairingForm" class="pairing-form">
+                        <div class="form-group">
+                            <label for="phoneNumber">WhatsApp Number:</label>
+                            <input type="text" id="phoneNumber" 
+                                   placeholder="6281234567890 (without +)" 
+                                   required
+                                   pattern="[0-9]{10,15}">
+                            <small>Enter your WhatsApp number with country code</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="btn-text">Get Pairing Code</span>
+                            <span class="btn-loading" style="display: none;">🔄 Requesting...</span>
+                        </button>
+                    </form>
+                    
+                    <div class="pairing-result" id="pairingResult" style="display: none;">
+                        <h3>Your Pairing Code:</h3>
+                        <div class="pairing-code" id="pairingCodeDisplay"></div>
+                        <p>Enter this code in WhatsApp → Linked Devices → Link with Phone Number</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="right-column">
+                <!-- System Info -->
+                <div class="card system-info">
+                    <h2>⚙️ System Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">🕒 Current Time</span>
+                            <span class="info-value" id="currentTime">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">🚀 Uptime</span>
+                            <span class="info-value" id="systemUptime">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">💾 Memory</span>
+                            <span class="info-value" id="memoryUsage">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">📊 Platform</span>
+                            <span class="info-value" id="platformInfo">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bot Stats -->
+                <div class="card stats-panel">
+                    <h2>📈 Bot Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number" id="messagesCount">0</div>
+                            <div class="stat-label">Messages</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="usersCount">0</div>
+                            <div class="stat-label">Users</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number" id="connectionsCount">0</div>
+                            <div class="stat-label">Connections</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Features -->
+                <div class="card features-panel">
+                    <h2>✨ Features</h2>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <span class="feature-icon">🤖</span>
+                            <span class="feature-text">AI Chat</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">📥</span>
+                            <span class="feature-text">Media Download</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🎮</span>
+                            <span class="feature-text">Games</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🔊</span>
+                            <span class="feature-text">Voice Notes</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🖼️</span>
+                            <span class="feature-text">Stickers</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">⚡</span>
+                            <span class="feature-text">Fast Response</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deployment Info -->
+                <div class="card deployment-info">
+                    <h2>🌐 Deployment</h2>
+                    <div class="deployment-details">
+                        <div class="deploy-item">
+                            <strong>Platform:</strong> Koyeb
+                        </div>
+                        <div class="deploy-item">
+                            <strong>URL:</strong> <%= baseUrl %>
+                        </div>
+                        <div class="deploy-item">
+                            <strong>Owner:</strong> <%= owner %>
+                        </div>
+                        <div class="deploy-item">
+                            <strong>Version:</strong> 3.0.0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2024 <%= botName %> | Deployed on Koyeb | Created by <%= owner %></p>
+            <p class="footer-note">🔒 Secure • ⚡ Fast • 🔄 Auto-reconnect</p>
+        </footer>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
