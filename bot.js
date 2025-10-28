@@ -99,6 +99,33 @@ async function startBot(statusUpdater) {
             }
         });
 
+        // Handle pairing code requests
+        if (global.pairingRequest) {
+            try {
+                console.log(chalk.blue('🔢 Requesting pairing code for:'), global.pairingRequest);
+                const pairingCode = await sock.requestPairingCode(global.pairingRequest);
+                const formattedCode = pairingCode.match(/.{1,4}/g)?.join('-') || pairingCode;
+                
+                statusUpdater({
+                    pairingCode: formattedCode,
+                    qrCode: null,
+                    connectionStatus: 'enter_pairing'
+                });
+                
+                console.log(chalk.green('✅ Pairing Code:'), formattedCode);
+                
+                // Clear the request
+                global.pairingRequest = null;
+                
+            } catch (error) {
+                console.error('❌ Pairing error:', error);
+                statusUpdater({
+                    connectionStatus: 'pairing_error',
+                    error: error.message
+                });
+            }
+        }
+
         // Handle credentials update
         sock.ev.on('creds.update', saveCreds);
 
@@ -108,16 +135,6 @@ async function startBot(statusUpdater) {
                 await handleIncomingMessage(sock, messages[0]);
             }
         });
-
-        // Cek apakah ada permintaan pairing code dari environment variable
-        if (process.env.PAIRING_NUMBER) {
-            await requestPairingCode(sock, process.env.PAIRING_NUMBER, statusUpdater);
-        }
-
-        // Handle pairing code request via message
-        global.requestPairing = async (number) => {
-            return await requestPairingCode(sock, number, statusUpdater);
-        };
 
         console.log(chalk.green('🤖 Bot initialization complete!'));
 
@@ -133,50 +150,6 @@ async function startBot(statusUpdater) {
     }
 }
 
-// Fungsi untuk meminta pairing code
-async function requestPairingCode(sock, number, statusUpdater) {
-    try {
-        console.log(chalk.blue('🔢 Requesting pairing code for:'), number);
-        
-        // Format nomor (pastikan format internasional tanpa +)
-        let formattedNumber = number.replace(/\D/g, '');
-        if (formattedNumber.startsWith('0')) {
-            formattedNumber = '62' + formattedNumber.substring(1);
-        }
-        
-        const pairingCode = await sock.requestPairingCode(formattedNumber);
-        const formattedCode = pairingCode.match(/.{1,4}/g)?.join('-') || pairingCode;
-        
-        statusUpdater({
-            pairingCode: formattedCode,
-            qrCode: null,
-            connectionStatus: 'enter_pairing',
-            pairingNumber: formattedNumber
-        });
-        
-        console.log(chalk.green('✅ Pairing Code:'), formattedCode);
-        console.log(chalk.blue('📱 Enter this code in WhatsApp on the phone with number:'), formattedNumber);
-        
-        return {
-            success: true,
-            pairingCode: formattedCode,
-            number: formattedNumber
-        };
-        
-    } catch (error) {
-        console.error('❌ Pairing error:', error);
-        statusUpdater({
-            connectionStatus: 'pairing_error',
-            error: error.message
-        });
-        
-        return {
-            success: false,
-            error: error.message
-        };
-    }
-}
-
 async function sendWelcomeMessage(sock) {
     try {
         if (sock.user) {
@@ -188,10 +161,6 @@ async function sendWelcomeMessage(sock) {
 🕒 ${new Date().toLocaleString()}
 🌐 Server: ${process.env.KOYEB_PUBLIC_DOMAIN || 'Koyeb Cloud'}
 📊 Status: Online and Ready
-
-*Connection Methods:*
-• QR Code Scanning
-• Pairing Code
 
 *Features Available:*
 • AI Chat Assistant
@@ -235,11 +204,11 @@ async function handleIncomingMessage(sock, message) {
         
         if (text) {
             // Update stats
-            if (global.botState && global.botState.stats) {
+            if (global.botState.stats) {
                 global.botState.stats.messagesProcessed++;
             }
             
-            // Simple auto-reply dengan tambahan command pairing
+            // Simple auto-reply
             if (text.toLowerCase() === '!menu') {
                 await sock.sendMessage(jid, {
                     text: `🎮 *KNIGHT BOT MENU*
@@ -261,10 +230,6 @@ async function handleIncomingMessage(sock, message) {
 • !tts <text> - Text to speech
 • !stt - Convert voice to text
 
-🔗 Connection:
-• !pair <number> - Request pairing code
-• !qr - Show QR code
-
 ⚙️ Other:
 • !sticker - Create sticker
 • !info - Bot info
@@ -280,35 +245,6 @@ async function handleIncomingMessage(sock, message) {
             } else if (text.toLowerCase() === 'ping') {
                 await sock.sendMessage(jid, {
                     text: '🏓 Pong! Bot is alive and running on Koyeb!'
-                });
-            } else if (text.toLowerCase().startsWith('!pair')) {
-                // Handle pairing request via message
-                const number = text.substring(5).trim();
-                if (!number) {
-                    await sock.sendMessage(jid, {
-                        text: '❌ Please provide a phone number. Example: !pair 628123456789'
-                    });
-                    return;
-                }
-                
-                await sock.sendMessage(jid, {
-                    text: '🔄 Requesting pairing code...'
-                });
-                
-                const result = await requestPairingCode(sock, number, global.updateBotStatus || (() => {}));
-                
-                if (result.success) {
-                    await sock.sendMessage(jid, {
-                        text: `✅ Pairing Code: *${result.pairingCode}*\n\nEnter this code in WhatsApp on the phone with number: ${result.number}`
-                    });
-                } else {
-                    await sock.sendMessage(jid, {
-                        text: `❌ Failed to get pairing code: ${result.error}`
-                    });
-                }
-            } else if (text.toLowerCase() === '!qr') {
-                await sock.sendMessage(jid, {
-                    text: '📱 Please scan the QR code shown in the terminal or browser interface to connect.'
                 });
             }
         }
